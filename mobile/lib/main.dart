@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'providers/auth_provider.dart';
+import 'screens/login_screen.dart';
 
 void main() {
   runApp(
@@ -16,9 +17,17 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: Scaffold(body: Center(child: Text("Chit_Chat"))),
+    return Consumer<AuthProvider>(
+      builder: (context, authProvider, child) {
+        return MaterialApp(
+          debugShowCheckedModeBanner: false,
+          home: authProvider.isAuthenticated
+              ? const Scaffold(
+                  body: Center(child: Text("Logged in successfully")),
+                )
+              : const LoginScreen(),
+        );
+      },
     );
   }
 }
