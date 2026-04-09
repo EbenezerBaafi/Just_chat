@@ -1,8 +1,9 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'dart:ui';
+import '../providers/auth_provider.dart';
 
-/// A beautiful, modern login page for the "just_chat" app.
-/// This code is converted from a Google Stitch HTML template.
+/// A beautiful, modern login screen for the "just_chat" app.
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -13,16 +14,54 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  bool _isPasswordVisible = false;
 
-  // Custom Colors from the HTML template
+  bool _isPasswordVisible = false;
+  bool _isLoading = false;
+  String? _errorMessage;
+
+  // Custom Colors from the design template
   static const Color kBackgroundColor = Color(0xFF0E0E0E);
   static const Color kPrimaryColor = Color(0xFFBBC3FF);
   static const Color kPrimaryDark = Color(0xFF002CCD);
+  static const Color kSurfaceContainer = Color(0xFF191A1A);
   static const Color kSurfaceLowest = Color(0xFF000000);
   static const Color kOnSurface = Color(0xFFE7E5E4);
   static const Color kOnSurfaceVariant = Color(0xFFACABAA);
   static const Color kOutlineVariant = Color(0xFF484848);
+  static const Color kErrorColor = Color(0xFFEC7C8A);
+
+  /// Integrated Login Logic
+  Future<void> _login() async {
+    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+      setState(() {
+        _errorMessage = "Please enter both email and password.";
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      await context.read<AuthProvider>().login(
+        _emailController.text.trim(),
+        _passwordController.text.trim(),
+      );
+      // Navigation logic usually happens inside the AuthProvider or via a listener in the main app
+    } catch (e) {
+      setState(() {
+        _errorMessage = e.toString();
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -89,7 +128,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         size: 28,
                       ),
                       const SizedBox(width: 8),
-                      Text(
+                      const Text(
                         'just_chat',
                         style: TextStyle(
                           fontFamily: 'Manrope',
@@ -111,7 +150,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       children: [
                         const SizedBox(height: 60),
                         // Editorial Header
-                        Text(
+                        const Text(
                           'Sign In',
                           style: TextStyle(
                             fontFamily: 'Manrope',
@@ -130,6 +169,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           controller: _emailController,
                           hintText: 'name@example.com',
                           keyboardType: TextInputType.emailAddress,
+                          enabled: !_isLoading,
                         ),
                         const SizedBox(height: 24),
 
@@ -139,7 +179,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           children: [
                             _buildLabel('PASSWORD'),
                             TextButton(
-                              onPressed: () {},
+                              onPressed: _isLoading ? null : () {},
                               style: TextButton.styleFrom(
                                 padding: EdgeInsets.zero,
                                 minimumSize: Size.zero,
@@ -161,6 +201,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           controller: _passwordController,
                           hintText: '••••••••',
                           obscureText: !_isPasswordVisible,
+                          enabled: !_isLoading,
                           suffixIcon: IconButton(
                             icon: Icon(
                               _isPasswordVisible
@@ -176,6 +217,24 @@ class _LoginScreenState extends State<LoginScreen> {
                             },
                           ),
                         ),
+
+                        // Error Message Display
+                        if (_errorMessage != null)
+                          Padding(
+                            padding: const EdgeInsets.only(
+                              top: 16.0,
+                              left: 4.0,
+                            ),
+                            child: Text(
+                              _errorMessage!,
+                              style: const TextStyle(
+                                color: kErrorColor,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+
                         const SizedBox(height: 40),
 
                         // Login Button
@@ -184,23 +243,31 @@ class _LoginScreenState extends State<LoginScreen> {
                           height: 56,
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(28),
-                            gradient: const LinearGradient(
-                              colors: [kPrimaryColor, kPrimaryDark],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color.fromRGBO(0, 44, 205, 0.2),
-                                blurRadius: 20,
-                                offset: const Offset(0, 10),
-                              ),
-                            ],
+                            gradient: _isLoading
+                                ? null
+                                : const LinearGradient(
+                                    colors: [kPrimaryColor, kPrimaryDark],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                            color: _isLoading ? kSurfaceContainer : null,
+                            boxShadow: _isLoading
+                                ? []
+                                : [
+                                    BoxShadow(
+                                      color: const Color.fromRGBO(
+                                        0,
+                                        44,
+                                        205,
+                                        0.2,
+                                      ),
+                                      blurRadius: 20,
+                                      offset: const Offset(0, 10),
+                                    ),
+                                  ],
                           ),
                           child: ElevatedButton(
-                            onPressed: () {
-                              // Handle Login
-                            },
+                            onPressed: _isLoading ? null : _login,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.transparent,
                               shadowColor: Colors.transparent,
@@ -208,15 +275,24 @@ class _LoginScreenState extends State<LoginScreen> {
                                 borderRadius: BorderRadius.circular(28),
                               ),
                             ),
-                            child: const Text(
-                              'Login',
-                              style: TextStyle(
-                                fontFamily: 'Manrope',
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                                color: kOnSurface,
-                              ),
-                            ),
+                            child: _isLoading
+                                ? const SizedBox(
+                                    height: 24,
+                                    width: 24,
+                                    child: CircularProgressIndicator(
+                                      color: kPrimaryColor,
+                                      strokeWidth: 2.5,
+                                    ),
+                                  )
+                                : const Text(
+                                    'Login',
+                                    style: TextStyle(
+                                      fontFamily: 'Manrope',
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w700,
+                                      color: kOnSurface,
+                                    ),
+                                  ),
                           ),
                         ),
 
@@ -237,7 +313,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   alignment: PlaceholderAlignment.baseline,
                                   baseline: TextBaseline.alphabetic,
                                   child: GestureDetector(
-                                    onTap: () {},
+                                    onTap: _isLoading ? null : () {},
                                     child: const Text(
                                       'Create account',
                                       style: TextStyle(
@@ -284,6 +360,7 @@ class _LoginScreenState extends State<LoginScreen> {
     required TextEditingController controller,
     required String hintText,
     bool obscureText = false,
+    bool enabled = true,
     TextInputType? keyboardType,
     Widget? suffixIcon,
   }) {
@@ -296,8 +373,9 @@ class _LoginScreenState extends State<LoginScreen> {
       child: TextField(
         controller: controller,
         obscureText: obscureText,
+        enabled: enabled,
         keyboardType: keyboardType,
-        style: const TextStyle(color: kOnSurface),
+        style: TextStyle(color: enabled ? kOnSurface : kOnSurfaceVariant),
         cursorColor: kPrimaryColor,
         decoration: InputDecoration(
           hintText: hintText,

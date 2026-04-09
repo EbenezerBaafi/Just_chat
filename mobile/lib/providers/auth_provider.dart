@@ -13,13 +13,15 @@ class AuthProvider extends ChangeNotifier {
   bool get isAuthenticated => _token != null;
 
   Future<void> login(String email, String password) async {
-    final response = await _api.login({"email": email, "password": password});
+    try {
+      final response = await _api.login({"email": email, "password": password});
 
-    _token = response.data['access'];
-
-    await _storage.write(key: 'token', value: _token);
-
-    notifyListeners();
+      _token = response.data['access'];
+      await _storage.write(key: 'token', value: _token);
+      notifyListeners();
+    } catch (e) {
+      rethrow;
+    }
   }
 
   Future<void> register(String username, String email, String password) async {

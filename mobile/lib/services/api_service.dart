@@ -3,22 +3,22 @@ import 'package:dio/dio.dart';
 class ApiService {
   final Dio _dio = Dio(
     BaseOptions(
-      baseUrl: "http://172.23.48.1:8000/api", // 🔥 replace with your IP
+      baseUrl: "http://10.194.233.60:8000/api/",
       headers: {"Content-Type": "application/json"},
+      connectTimeout: const Duration(seconds: 10),
+      receiveTimeout: const Duration(seconds: 10),
+      sendTimeout: const Duration(seconds: 10),
     ),
   );
 
-  // REGISTER
+  Future<Response> login(Map<String, dynamic> data) async {
+    return await _dio.post('/users/login/', data: data);
+  }
+
   Future<Response> register(Map<String, dynamic> data) async {
     return await _dio.post("/users/register/", data: data);
   }
 
-  // LOGIN
-  Future<Response> login(Map<String, dynamic> data) async {
-    return await _dio.post("/users/login/", data: data);
-  }
-
-  // GET PROFILE
   Future<Response> getProfile(String token) async {
     return await _dio.get(
       "/users/profile/",
@@ -26,7 +26,6 @@ class ApiService {
     );
   }
 
-  // GET USERS
   Future<Response> getUsers(String token) async {
     return await _dio.get(
       "/users/all/",
