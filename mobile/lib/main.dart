@@ -2,13 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'providers/auth_provider.dart';
 import 'screens/login_screen.dart';
+import 'screens/user_list_screen.dart';
 
 void main() {
   runApp(
-    ChangeNotifierProvider(
-      create: (_) => AuthProvider()..loadToken(),
-      child: const MyApp(),
-    ),
+    ChangeNotifierProvider(create: (_) => AuthProvider(), child: const MyApp()),
   );
 }
 
@@ -22,9 +20,7 @@ class MyApp extends StatelessWidget {
         return MaterialApp(
           debugShowCheckedModeBanner: false,
           home: authProvider.isAuthenticated
-              ? const Scaffold(
-                  body: Center(child: Text("Logged in successfully")),
-                )
+              ? const ContactsScreen()
               : const LoginScreen(),
         );
       },
