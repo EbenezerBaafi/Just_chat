@@ -3,7 +3,7 @@ import 'package:dio/dio.dart';
 class ApiService {
   final Dio _dio = Dio(
     BaseOptions(
-      baseUrl: "http://10.212.40.60/api/",
+      baseUrl: "http://10.212.40.60:8000/api/",
       headers: {"Content-Type": "application/json"},
       connectTimeout: const Duration(seconds: 10),
       receiveTimeout: const Duration(seconds: 10),
