@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'chat_screen.dart';
 
 /// A beautiful, modern user list screen for the "just_chat" app,
 /// designed to display real user data (name and email) with Google Stitch UI.
