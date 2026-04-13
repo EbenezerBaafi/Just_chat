@@ -12,7 +12,7 @@ services:
     name: just-chat-backend
     env: python
     rootDir: backend
-    buildCommand: "./build.sh"
+    buildCommand: "bash build.sh"
     startCommand: "daphne -b 0.0.0.0 -p $PORT config.asgi:application"
     envVars:
       - key: PYTHON_VERSION
