@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
+import '../services/api_service.dart';
+import 'chat_screen.dart';
 
-/// A beautiful, modern user list screen for the "just_chat" app,
-/// designed to display real user data (name and email) with Google Stitch UI.
 class ContactsScreen extends StatefulWidget {
   const ContactsScreen({super.key});
 
@@ -12,7 +14,6 @@ class ContactsScreen extends StatefulWidget {
 
 class _ContactsScreenState extends State<ContactsScreen>
     with TickerProviderStateMixin {
-  // Custom Colors from the HTML template (Google Stitch design)
   static const Color kBackgroundColor = Color(0xFF0E0E0E);
   static const Color kPrimaryColor = Color(0xFFBBC3FF);
   static const Color kOnSurface = Color(0xFFE7E5E4);
@@ -23,33 +24,76 @@ class _ContactsScreenState extends State<ContactsScreen>
   static const Color kSurface = Color(0xFF0E0E0E);
 
   final TextEditingController _searchController = TextEditingController();
-  late AnimationController _hoverController;
-  late AnimationController _activeController;
+  final ApiService _api = ApiService();
 
-  // Your existing real user data
-  final List<Map<String, String>> _users = [
-    {'name': 'cedi', 'email': 'cedicray20@gmail.com'},
-    {'name': 'admin1', 'email': 'admin1@gmail.com'},
-  ];
+  List<Map<String, dynamic>> _users = [];
+  List<Map<String, dynamic>> _filteredUsers = [];
+  bool _isLoading = true;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
-    _hoverController = AnimationController(
-      duration: const Duration(milliseconds: 300),
-      vsync: this,
-    );
-    _activeController = AnimationController(
-      duration: const Duration(milliseconds: 200),
-      vsync: this,
-    );
+    _fetchUsers();
+    _searchController.addListener(_onSearch);
+  }
+
+  void _onSearch() {
+    final query = _searchController.text.toLowerCase();
+    setState(() {
+      _filteredUsers = _users.where((user) {
+        final name = (user['username'] ?? '').toLowerCase();
+        final email = (user['email'] ?? '').toLowerCase();
+        return name.contains(query) || email.contains(query);
+      }).toList();
+    });
+  }
+
+  Future<void> _fetchUsers() async {
+    try {
+      final token =
+          Provider.of<AuthProvider>(context, listen: false).token ?? '';
+      final response = await _api.getUsers(token);
+      setState(() {
+        _users = List<Map<String, dynamic>>.from(response.data);
+        _filteredUsers = _users;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = 'Failed to load contacts';
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _openChat(Map<String, dynamic> user) async {
+    try {
+      final token =
+          Provider.of<AuthProvider>(context, listen: false).token ?? '';
+      final response = await _api.startConversation(token, user['id']);
+      final conversation = response.data;
+
+      if (!mounted) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ChatScreen(
+            conversationId: conversation['id'],
+            otherUserName: user['username'] ?? user['email'],
+          ),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open conversation')),
+      );
+    }
   }
 
   @override
   void dispose() {
     _searchController.dispose();
-    _hoverController.dispose();
-    _activeController.dispose();
     super.dispose();
   }
 
@@ -59,7 +103,6 @@ class _ContactsScreenState extends State<ContactsScreen>
       backgroundColor: kBackgroundColor,
       body: CustomScrollView(
         slivers: [
-          // Fixed Top AppBar (Google Stitch style)
           SliverAppBar(
             pinned: true,
             expandedHeight: 80,
@@ -100,14 +143,12 @@ class _ContactsScreenState extends State<ContactsScreen>
               ),
             ),
           ),
-          // Main Content
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(32, 24, 32, 128),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Editorial Header Section (Google Stitch style)
                   Text(
                     'Contacts',
                     style: GoogleFonts.manrope(
@@ -128,14 +169,11 @@ class _ContactsScreenState extends State<ContactsScreen>
                     ),
                   ),
                   const SizedBox(height: 40),
-
-                  // Search Input Field - Recessed Style (Google Stitch)
                   Container(
                     width: double.infinity,
                     decoration: BoxDecoration(
                       color: kSurfaceContainerLowest,
                       borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: Colors.transparent, width: 1),
                     ),
                     child: TextField(
                       controller: _searchController,
@@ -162,26 +200,59 @@ class _ContactsScreenState extends State<ContactsScreen>
                     ),
                   ),
                   const SizedBox(height: 40),
-
-                  // Contact List (Google Stitch design with your data)
-                  ListView.separated(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: _users.length,
-                    separatorBuilder: (context, index) =>
-                        const SizedBox(height: 4),
-                    itemBuilder: (context, index) {
-                      final user = _users[index];
-                      return ContactListItem(
-                        name: user['name']!,
-                        subtitle: user['email']!,
-                        isActive: index % 2 == 0, // Alternate active status
-                        onTap: () {
-                          // Handle user tap - navigate to chat
-                        },
-                      );
-                    },
-                  ),
+                  if (_isLoading)
+                    const Center(
+                      child: CircularProgressIndicator(color: kPrimaryColor),
+                    )
+                  else if (_error != null)
+                    Center(
+                      child: Column(
+                        children: [
+                          Text(
+                            _error!,
+                            style: GoogleFonts.inter(color: kOnSurfaceVariant),
+                          ),
+                          const SizedBox(height: 12),
+                          TextButton(
+                            onPressed: () {
+                              setState(() {
+                                _isLoading = true;
+                                _error = null;
+                              });
+                              _fetchUsers();
+                            },
+                            child: Text(
+                              'Retry',
+                              style: GoogleFonts.inter(color: kPrimaryColor),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else if (_filteredUsers.isEmpty)
+                    Center(
+                      child: Text(
+                        'No contacts found',
+                        style: GoogleFonts.inter(color: kOnSurfaceVariant),
+                      ),
+                    )
+                  else
+                    ListView.separated(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: _filteredUsers.length,
+                      separatorBuilder: (context, index) =>
+                          const SizedBox(height: 4),
+                      itemBuilder: (context, index) {
+                        final user = _filteredUsers[index];
+                        return ContactListItem(
+                          name: user['username'] ?? '',
+                          subtitle: user['email'] ?? '',
+                          isActive: user['is_online'] ?? false,
+                          onTap: () => _openChat(user),
+                        );
+                      },
+                    ),
                 ],
               ),
             ),
@@ -280,11 +351,9 @@ class _ContactListItemState extends State<ContactListItem>
                 padding: const EdgeInsets.symmetric(vertical: 24),
                 child: Row(
                   children: [
-                    // Profile Image Container (Google Stitch style)
                     Stack(
                       clipBehavior: Clip.none,
                       children: [
-                        // Grayscale avatar with hover effect
                         Container(
                           width: 64,
                           height: 64,
@@ -299,7 +368,6 @@ class _ContactListItemState extends State<ContactListItem>
                             size: _isHovered ? 30 : 28,
                           ),
                         ),
-                        // Active indicator (Google Stitch style)
                         if (widget.isActive)
                           Positioned(
                             bottom: -2,
@@ -320,12 +388,10 @@ class _ContactListItemState extends State<ContactListItem>
                       ],
                     ),
                     const SizedBox(width: 24),
-                    // User Info
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Name (hover effect - Google Stitch)
                           Text(
                             widget.name,
                             style: GoogleFonts.manrope(
@@ -337,7 +403,6 @@ class _ContactListItemState extends State<ContactListItem>
                             ),
                           ),
                           const SizedBox(height: 4),
-                          // Email/Status (your data)
                           Text(
                             widget.subtitle,
                             style: GoogleFonts.inter(
@@ -348,6 +413,11 @@ class _ContactListItemState extends State<ContactListItem>
                           ),
                         ],
                       ),
+                    ),
+                    Icon(
+                      Icons.arrow_forward_ios,
+                      color: _ContactsScreenState.kOutline,
+                      size: 16,
                     ),
                   ],
                 ),
